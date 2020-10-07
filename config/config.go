@@ -9,6 +9,8 @@ type Config struct {
 	Port uint32 `configName:"port"`
 	RedisHost string `configName:"redisHost"`
 	RedisPassword string `configName:"redisPassword"`
+	ControlPlaneHost string `configName:"controlPlaneHost"`
+	ControlPlanePort uint32 `configName:"controlPlanePort"`
 }
 
 var GlobalConfig = &Config{}

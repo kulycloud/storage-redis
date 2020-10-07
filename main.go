@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	commonCommunication "github.com/kulycloud/common/communication"
 	"github.com/kulycloud/common/logging"
 	"github.com/kulycloud/storage-redis/communication"
 	"github.com/kulycloud/storage-redis/config"
@@ -8,32 +10,64 @@ import (
 	"time"
 )
 
+var logger = logging.GetForComponent("init")
+
 func main() {
-	initLogger := logging.GetForComponent("init")
 	defer logging.Sync()
 
 	err := config.ParseConfig()
 	if err != nil {
-		initLogger.Fatalw("Error parsing config", "error", err)
+		logger.Fatalw("Error parsing config", "error", err)
 	}
-	initLogger.Infow("Finished parsing config", "config", config.GlobalConfig)
+	logger.Infow("Finished parsing config", "config", config.GlobalConfig)
 
-	connector := database.NewConnector()
+	dbConnector := database.NewConnector()
 	for {
-		err := connector.Connect()
+		err := dbConnector.Connect()
 		if err == nil {
 			break
 		}
 
-		initLogger.Errorw("Could not connect database", "error", err)
-		initLogger.Info("Retrying in 5s...")
+		logger.Errorw("Could not connect dbConnector", "error", err)
+		logger.Info("Retrying in 5s...")
 		time.Sleep(5*time.Second)
 	}
 
-	initLogger.Info("Starting listener")
+	go registerLoop()
+
+	logger.Info("Starting listener")
 	listener := communication.NewListener()
 	err = listener.Start()
 	if err != nil {
-		initLogger.Panicw("error initializing listener", "error", err)
+		logger.Panicw("error initializing listener", "error", err)
 	}
 }
+
+func registerLoop() {
+	for {
+		_, err := register()
+		if err == nil {
+			break
+		}
+
+		logger.Info("Retrying in 5s...")
+		time.Sleep(5*time.Second)
+	}
+}
+
+func register() (*commonCommunication.Communicator, error) {
+	comm := commonCommunication.NewCommunicator()
+	err := comm.Connect(config.GlobalConfig.ControlPlaneHost, config.GlobalConfig.ControlPlanePort)
+	if err != nil {
+		logger.Errorw("Could not connect to control-plane", "error", err)
+		return nil, err
+	}
+	err = comm.RegisterThisService(context.Background(), "storage", config.GlobalConfig.Host, config.GlobalConfig.Port)
+	if err != nil {
+		logger.Errorw("Could not register service", "error", err)
+		return nil, err
+	}
+	logger.Info("Registered to control-plane")
+	return comm, nil
+}
+

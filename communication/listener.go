@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kulycloud/common/logging"
 	"github.com/kulycloud/protocol/common"
+	protoCommon "github.com/kulycloud/protocol/common"
 	protoStorage "github.com/kulycloud/protocol/storage"
 	"github.com/kulycloud/storage-redis/config"
 	"google.golang.org/grpc"
@@ -37,7 +38,7 @@ func (listener *Listener) Start() error {
 }
 
 func (listener *Listener) Ping(ctx context.Context, empty *common.Empty) (*common.Empty, error) {
-	panic("implement me")
+	return &protoCommon.Empty{}, nil
 }
 
 func (listener *Listener) SetRoute(ctx context.Context, request *protoStorage.SetRouteRequest) (*protoStorage.SetRouteResponse, error) {
