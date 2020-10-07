@@ -48,10 +48,3 @@ func (connector *Connector) GetRoute(ctx context.Context, id string) (string, er
 	return str, nil
 }
 
-func (connector *Connector) SetRoute(ctx context.Context, id string, route string) error {
-	return connector.redisClient.Set(ctx, dbRouteName(id), route, 0).Err()
-}
-
-func dbRouteName(id string) string {
-	return "routes/" + id
-}

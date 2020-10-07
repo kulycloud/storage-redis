@@ -36,7 +36,7 @@ func main() {
 	go registerLoop()
 
 	logger.Info("Starting listener")
-	listener := communication.NewListener()
+	listener := communication.NewListener(dbConnector)
 	err = listener.Start()
 	if err != nil {
 		logger.Panicw("error initializing listener", "error", err)

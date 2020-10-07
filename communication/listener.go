@@ -2,27 +2,34 @@ package communication
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/kulycloud/common/logging"
 	"github.com/kulycloud/protocol/common"
 	protoCommon "github.com/kulycloud/protocol/common"
 	protoStorage "github.com/kulycloud/protocol/storage"
 	"github.com/kulycloud/storage-redis/config"
+	"github.com/kulycloud/storage-redis/database"
 	"google.golang.org/grpc"
 	"net"
 )
 
 var _ protoStorage.StorageServer = &Listener{}
 
+var ErrInvalidRequest = errors.New("invalid request")
+
 var logger = logging.GetForComponent("communication")
 
 type Listener struct {
 	server *grpc.Server
 	listener net.Listener
+	dbConnector *database.Connector
 }
 
-func NewListener() *Listener {
-	return &Listener{}
+func NewListener(dbConnector *database.Connector) *Listener {
+	return &Listener{
+		dbConnector: dbConnector,
+	}
 }
 
 func (listener *Listener) Start() error {
@@ -42,7 +49,22 @@ func (listener *Listener) Ping(ctx context.Context, empty *common.Empty) (*commo
 }
 
 func (listener *Listener) SetRoute(ctx context.Context, request *protoStorage.SetRouteRequest) (*protoStorage.SetRouteResponse, error) {
-	panic("implement me")
+	var uid string
+	switch val := request.Id.(type) {
+	case *protoStorage.SetRouteRequest_Uid:
+		uid = val.Uid
+	case *protoStorage.SetRouteRequest_NamespacedName:
+		uid = database.RouteUidFromNamespacedName(val.NamespacedName)
+	default:
+		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
+	}
+
+	err := listener.dbConnector.SetRoute(ctx, uid, request.Data)
+	if err != nil {
+		return nil, fmt.Errorf("could not set route: %w", err)
+	}
+
+	return &protoStorage.SetRouteResponse{Uid: uid}, nil
 }
 
 func (listener *Listener) GetRoute(ctx context.Context, request *protoStorage.GetRouteRequest) (*protoStorage.GetRouteResponse, error) {
