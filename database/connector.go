@@ -36,15 +36,3 @@ func (connector *Connector) Connect() error {
 
 	return nil
 }
-
-func (connector *Connector) GetRoute(ctx context.Context, id string) (string, error) {
-	str, err := connector.redisClient.Get(ctx, dbRouteName(id)).Result()
-	if err != nil {
-		if err == redis.Nil {
-			return "", ErrorNotFound
-		}
-		return "", nil
-	}
-	return str, nil
-}
-

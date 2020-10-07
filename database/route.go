@@ -3,7 +3,10 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"github.com/go-redis/redis/v8"
+	"github.com/golang/protobuf/jsonpb"
 	protoStorage "github.com/kulycloud/protocol/storage"
+	"strings"
 )
 
 type dbRoute struct {
@@ -15,6 +18,10 @@ func dbRouteFromProtoRoute(route *protoStorage.Route) *dbRoute {
 	return &dbRoute{
 		Host: route.Host,
 	}
+}
+
+func unpackDbRoute(dbRoute *dbRoute, route *protoStorage.Route) {
+	route.Host = dbRoute.Host
 }
 
 func dbRouteName(uid string) string {
@@ -43,8 +50,9 @@ func (connector *Connector) SetRoute(ctx context.Context, uid string, route *pro
 	p.Del(ctx, dbRouteStepsName(uid))
 
 
+	m := jsonpb.Marshaler{}
 	for _, step := range route.Steps {
-		stepStr, err := json.Marshal(step)
+		stepStr, err := m.MarshalToString(step)
 		if err != nil {
 			return err
 		}
@@ -54,4 +62,39 @@ func (connector *Connector) SetRoute(ctx context.Context, uid string, route *pro
 
 	_, err = p.Exec(ctx)
 	return err
+}
+
+func (connector *Connector) GetRoute(ctx context.Context, uid string, route *protoStorage.Route) error {
+	routeJson, err := connector.redisClient.Get(ctx, dbRouteName(uid)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return ErrorNotFound
+		}
+		return err
+	}
+
+	dbRoute := &dbRoute{}
+	err = json.Unmarshal([]byte(routeJson), dbRoute)
+	if err != nil {
+		return err
+	}
+
+	unpackDbRoute(dbRoute, route)
+
+	op := connector.redisClient.LRange(ctx, dbRouteStepsName(uid), 0, -1)
+	if op.Err() != nil {
+		return op.Err()
+	}
+
+	route.Steps = make([]*protoStorage.RouteStep, 0)
+	for _, stepJson := range op.Val() {
+		step := &protoStorage.RouteStep{}
+		err = jsonpb.Unmarshal(strings.NewReader(stepJson), step)
+		if err != nil {
+			return err
+		}
+		route.Steps = append(route.Steps, step)
+	}
+
+	return nil
 }
