@@ -47,3 +47,7 @@ func (listener *Listener) SetRoute(ctx context.Context, request *protoStorage.Se
 func (listener *Listener) GetRoute(ctx context.Context, request *protoStorage.GetRouteRequest) (*protoStorage.GetRouteResponse, error) {
 	panic("implement me")
 }
+
+func (listener *Listener) GetRouteStep(ctx context.Context, request *protoStorage.GetRouteStepRequest) (*protoStorage.GetRouteStepResponse, error) {
+	panic("implement me")
+}
