@@ -5,10 +5,10 @@ import (
 )
 
 type Config struct {
-	Host string `configName:"host"`
-	Port uint32 `configName:"port"`
-	RedisHost string `configName:"redisHost"`
-	RedisPassword string `configName:"redisPassword"`
+	Host             string `configName:"host"`
+	Port             uint32 `configName:"port"`
+	RedisAddress     string `configName:"redisAddress"`
+	RedisPassword    string `configName:"redisPassword"`
 	ControlPlaneHost string `configName:"controlPlaneHost"`
 	ControlPlanePort uint32 `configName:"controlPlanePort"`
 }

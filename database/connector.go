@@ -22,7 +22,7 @@ func NewConnector() *Connector {
 
 func (connector *Connector) Connect() error {
 	client  := redis.NewClient(&redis.Options{
-		Addr: config.GlobalConfig.RedisHost,
+		Addr: config.GlobalConfig.RedisAddress,
 		Password: config.GlobalConfig.RedisPassword,
 	})
 
