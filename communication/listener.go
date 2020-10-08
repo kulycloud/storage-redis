@@ -88,5 +88,21 @@ func (listener *Listener) GetRoute(ctx context.Context, request *protoStorage.Ge
 }
 
 func (listener *Listener) GetRouteStep(ctx context.Context, request *protoStorage.GetRouteStepRequest) (*protoStorage.GetRouteStepResponse, error) {
-	panic("implement me")
+	var uid string
+	switch val := request.Id.(type) {
+	case *protoStorage.GetRouteStepRequest_Uid:
+		uid = val.Uid
+	case *protoStorage.GetRouteStepRequest_NamespacedName:
+		uid = database.RouteUidFromNamespacedName(val.NamespacedName)
+	default:
+		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
+	}
+
+	step := &protoStorage.RouteStep{}
+	err := listener.dbConnector.GetRouteStep(ctx, uid, request.StepId, step)
+	if err != nil {
+		return nil, fmt.Errorf("could not get step: %w", err)
+	}
+
+	return &protoStorage.GetRouteStepResponse{Step: step}, nil
 }

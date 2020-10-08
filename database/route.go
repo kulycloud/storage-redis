@@ -98,3 +98,20 @@ func (connector *Connector) GetRoute(ctx context.Context, uid string, route *pro
 
 	return nil
 }
+
+func (connector *Connector) GetRouteStep(ctx context.Context, uid string, id uint32, step *protoStorage.RouteStep) error {
+
+	op := connector.redisClient.LRange(ctx, dbRouteStepsName(uid), 0, -1)
+	if op.Err() != nil {
+		return op.Err()
+	}
+
+	stepJson, err := connector.redisClient.LIndex(ctx, dbRouteStepsName(uid), int64(id)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return ErrorNotFound
+		}
+		return err
+	}
+	return jsonpb.Unmarshal(strings.NewReader(stepJson), step)
+}
