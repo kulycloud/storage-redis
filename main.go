@@ -36,10 +36,16 @@ func main() {
 	go registerLoop()
 
 	logger.Info("Starting listener")
-	listener := communication.NewListener(dbConnector)
-	err = listener.Start()
-	if err != nil {
+	listener := commonCommunication.NewListener(logging.GetForComponent("listener"))
+	if err = listener.Setup(config.GlobalConfig.Port); err != nil {
 		logger.Panicw("error initializing listener", "error", err)
+	}
+
+	handler := communication.NewStorageHandler(dbConnector)
+	handler.Register(listener)
+
+	if err = listener.Serve(); err != nil {
+		logger.Panicw("error serving listener", "error", err)
 	}
 }
 

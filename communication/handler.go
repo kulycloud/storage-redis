@@ -4,51 +4,32 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	commonCommunication "github.com/kulycloud/common/communication"
 	"github.com/kulycloud/common/logging"
-	"github.com/kulycloud/protocol/common"
-	protoCommon "github.com/kulycloud/protocol/common"
 	protoStorage "github.com/kulycloud/protocol/storage"
-	"github.com/kulycloud/storage-redis/config"
 	"github.com/kulycloud/storage-redis/database"
-	"google.golang.org/grpc"
-	"net"
 )
-
-var _ protoStorage.StorageServer = &Listener{}
 
 var ErrInvalidRequest = errors.New("invalid request")
 
 var logger = logging.GetForComponent("communication")
 
-type Listener struct {
-	server *grpc.Server
-	listener net.Listener
+var _ protoStorage.StorageServer = &StorageHandler{}
+type StorageHandler struct {
 	dbConnector *database.Connector
 }
 
-func NewListener(dbConnector *database.Connector) *Listener {
-	return &Listener{
+func NewStorageHandler(dbConnector *database.Connector) *StorageHandler {
+	return &StorageHandler{
 		dbConnector: dbConnector,
 	}
 }
 
-func (listener *Listener) Start() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", config.GlobalConfig.Port))
-	if err != nil {
-		return err
-	}
-	listener.listener = lis
-	listener.server = grpc.NewServer()
-	protoStorage.RegisterStorageServer(listener.server, listener)
-	logger.Infow("serving", "port", config.GlobalConfig.Port)
-	return listener.server.Serve(listener.listener)
+func (handler *StorageHandler) Register(listener *commonCommunication.Listener) {
+	protoStorage.RegisterStorageServer(listener.Server, handler)
 }
 
-func (listener *Listener) Ping(ctx context.Context, empty *common.Empty) (*common.Empty, error) {
-	return &protoCommon.Empty{}, nil
-}
-
-func (listener *Listener) SetRoute(ctx context.Context, request *protoStorage.SetRouteRequest) (*protoStorage.SetRouteResponse, error) {
+func (handler *StorageHandler) SetRoute(ctx context.Context, request *protoStorage.SetRouteRequest) (*protoStorage.SetRouteResponse, error) {
 	var uid string
 	switch val := request.Id.(type) {
 	case *protoStorage.SetRouteRequest_Uid:
@@ -59,7 +40,7 @@ func (listener *Listener) SetRoute(ctx context.Context, request *protoStorage.Se
 		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
 	}
 
-	err := listener.dbConnector.SetRoute(ctx, uid, request.Data)
+	err := handler.dbConnector.SetRoute(ctx, uid, request.Data)
 	if err != nil {
 		return nil, fmt.Errorf("could not set route: %w", err)
 	}
@@ -67,7 +48,7 @@ func (listener *Listener) SetRoute(ctx context.Context, request *protoStorage.Se
 	return &protoStorage.SetRouteResponse{Uid: uid}, nil
 }
 
-func (listener *Listener) GetRoute(ctx context.Context, request *protoStorage.GetRouteRequest) (*protoStorage.GetRouteResponse, error) {
+func (handler *StorageHandler) GetRoute(ctx context.Context, request *protoStorage.GetRouteRequest) (*protoStorage.GetRouteResponse, error) {
 	var uid string
 	switch val := request.Id.(type) {
 	case *protoStorage.GetRouteRequest_Uid:
@@ -79,7 +60,7 @@ func (listener *Listener) GetRoute(ctx context.Context, request *protoStorage.Ge
 	}
 
 	route := &protoStorage.Route{}
-	err := listener.dbConnector.GetRoute(ctx, uid, route)
+	err := handler.dbConnector.GetRoute(ctx, uid, route)
 	if err != nil {
 		return nil, fmt.Errorf("could not get route: %w", err)
 	}
@@ -87,7 +68,7 @@ func (listener *Listener) GetRoute(ctx context.Context, request *protoStorage.Ge
 	return &protoStorage.GetRouteResponse{Route: &protoStorage.RouteWithId{Uid: uid, Route: route}}, nil
 }
 
-func (listener *Listener) GetRouteStep(ctx context.Context, request *protoStorage.GetRouteStepRequest) (*protoStorage.GetRouteStepResponse, error) {
+func (handler *StorageHandler) GetRouteStep(ctx context.Context, request *protoStorage.GetRouteStepRequest) (*protoStorage.GetRouteStepResponse, error) {
 	var uid string
 	switch val := request.Id.(type) {
 	case *protoStorage.GetRouteStepRequest_Uid:
@@ -99,7 +80,7 @@ func (listener *Listener) GetRouteStep(ctx context.Context, request *protoStorag
 	}
 
 	step := &protoStorage.RouteStep{}
-	err := listener.dbConnector.GetRouteStep(ctx, uid, request.StepId, step)
+	err := handler.dbConnector.GetRouteStep(ctx, uid, request.StepId, step)
 	if err != nil {
 		return nil, fmt.Errorf("could not get step: %w", err)
 	}
