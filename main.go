@@ -61,8 +61,8 @@ func registerLoop() {
 	}
 }
 
-func register() (*commonCommunication.Communicator, error) {
-	comm := commonCommunication.NewCommunicator()
+func register() (*commonCommunication.ControlPlaneCommunicator, error) {
+	comm := commonCommunication.NewControlPlaneCommunicator()
 	err := comm.Connect(config.GlobalConfig.ControlPlaneHost, config.GlobalConfig.ControlPlanePort)
 	if err != nil {
 		logger.Errorw("Could not connect to control-plane", "error", err)
