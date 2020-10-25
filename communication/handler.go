@@ -119,3 +119,35 @@ func (handler *StorageHandler) GetRoutesInNamespace(ctx context.Context, request
 		Routes: routes,
 	}, nil
 }
+
+func (handler *StorageHandler) SetService(ctx context.Context, request *protoStorage.SetServiceRequest) (*protoCommon.Empty, error) {
+	err := handler.dbConnector.SetService(ctx, request.NamespacedName, request.Service)
+	if err != nil {
+		return nil, fmt.Errorf("could not set service: %w", err)
+	}
+
+	return &protoCommon.Empty{}, nil
+}
+
+func (handler *StorageHandler) GetService(ctx context.Context, request *protoStorage.GetServiceRequest) (*protoStorage.GetServiceResponse, error) {
+	var service = &protoStorage.Service{}
+	err := handler.dbConnector.GetService(ctx, request.NamespacedName, service)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get service: %w", err)
+	}
+
+	return &protoStorage.GetServiceResponse{Service: service}, nil
+}
+
+func (handler *StorageHandler) GetServicesInNamespace(ctx context.Context, request *protoStorage.GetServicesInNamespaceRequest) (*protoStorage.GetServicesInNamespaceResponse, error) {
+	routes, err := handler.dbConnector.GetServicesInNamespace(ctx, request.Namespace)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get services: %w", err)
+	}
+
+	return &protoStorage.GetServicesInNamespaceResponse{
+		Names: routes,
+	}, nil
+}
