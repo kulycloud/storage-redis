@@ -2,10 +2,8 @@ package database
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/jsonpb"
-	protoServices "github.com/kulycloud/protocol/services"
 	protoStorage "github.com/kulycloud/protocol/storage"
 	"strings"
 )
@@ -47,5 +45,5 @@ func (connector *Connector) GetService(ctx context.Context, name *protoStorage.N
 }
 
 func (connector *Connector) GetServicesInNamespace(ctx context.Context, namespace string) ([]string, error) {
-	return connector.redisClient.SMembers(ctx, dbNamespaceRoutesName(namespace)).Result()
+	return connector.redisClient.SMembers(ctx, dbNamespaceServicesName(namespace)).Result()
 }
