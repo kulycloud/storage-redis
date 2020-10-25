@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/jsonpb"
 	protoStorage "github.com/kulycloud/protocol/storage"
@@ -32,36 +33,85 @@ func dbRouteStepsName(uid string) string {
 	return "routes/" + uid + "/steps"
 }
 
-func RouteUidFromNamespacedName(namespacedName *protoStorage.NamespacedName) string {
-	return namespacedName.Namespace + ":" + namespacedName.Name
+func dbNamespaceRoutesName(namespace string) string {
+	return "routes/" + namespace
 }
 
-func (connector *Connector) SetRoute(ctx context.Context, uid string, route *protoStorage.Route) error {
+func dbLatestRevisionName(namespacedName *protoStorage.NamespacedName) string {
+	return "revisions/routes/" + namespacedName.Namespace + ":" + namespacedName.Name
+}
+
+func buildUid(namespacedName *protoStorage.NamespacedName, revision uint64) string {
+	return fmt.Sprintf("%s:%s@%v", namespacedName.Namespace, namespacedName.Name, revision)
+}
+
+func dbHostRoute(host string) string {
+	return "hosts/" + host
+}
+
+func (connector *Connector) GetRouteUidLatestRevision(ctx context.Context, namespacedName *protoStorage.NamespacedName) (string, error) {
+	revision, err := connector.GetRouteLatestRevision(ctx, namespacedName)
+	if err != nil {
+		return "", err
+	}
+	return buildUid(namespacedName, revision), nil
+}
+
+func (connector *Connector) GetRouteLatestRevision(ctx context.Context, namespacedName *protoStorage.NamespacedName) (uint64, error) {
+	return connector.redisClient.Get(ctx, dbLatestRevisionName(namespacedName)).Uint64()
+}
+
+func (connector *Connector) SetRoute(ctx context.Context, namespacedName *protoStorage.NamespacedName, route *protoStorage.Route) (string, error) {
 	// First update parent object
 	dbRoute := dbRouteFromProtoRoute(route)
 	str, err := json.Marshal(dbRoute)
 	if err != nil {
-		return err
+		return "", err
 	}
 
+	revision, err := connector.GetRouteLatestRevision(ctx, namespacedName)
+	if err != nil {
+		if err == redis.Nil {
+			revision = 0
+		} else {
+			return "", err
+		}
+	}
+	revision++
+	uid := buildUid(namespacedName, revision)
+
+	oldUid, err := connector.GetRouteUidLatestRevision(ctx, namespacedName)
+	hasOldUid := true
+	if err != nil {
+		if err != redis.Nil {
+			return "", err
+		} else {
+			hasOldUid = false
+		}
+	}
 
 	p := connector.redisClient.TxPipeline()
 	p.Set(ctx, dbRouteName(uid), str, 0)
 	p.Del(ctx, dbRouteStepsName(uid))
-
+	p.SAdd(ctx, dbNamespaceRoutesName(namespacedName.Namespace), uid)
+	if hasOldUid {
+		p.SRem(ctx, dbNamespaceRoutesName(namespacedName.Namespace), oldUid)
+	}
+	p.Set(ctx, dbHostRoute(route.Host), uid, 0)
+	p.Set(ctx, dbLatestRevisionName(namespacedName), revision, 0)
 
 	m := jsonpb.Marshaler{}
 	for _, step := range route.Steps {
 		stepStr, err := m.MarshalToString(step)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		p.RPush(ctx, dbRouteStepsName(uid), stepStr)
 	}
 
 	_, err = p.Exec(ctx)
-	return err
+	return uid, err
 }
 
 func (connector *Connector) GetRoute(ctx context.Context, uid string, route *protoStorage.Route) error {
@@ -100,7 +150,6 @@ func (connector *Connector) GetRoute(ctx context.Context, uid string, route *pro
 }
 
 func (connector *Connector) GetRouteStep(ctx context.Context, uid string, id uint32, step *protoStorage.RouteStep) error {
-
 	op := connector.redisClient.LRange(ctx, dbRouteStepsName(uid), 0, -1)
 	if op.Err() != nil {
 		return op.Err()
@@ -114,4 +163,20 @@ func (connector *Connector) GetRouteStep(ctx context.Context, uid string, id uin
 		return err
 	}
 	return jsonpb.Unmarshal(strings.NewReader(stepJson), step)
+}
+
+func (connector *Connector) GetRoutesInNamespace(ctx context.Context, namespace string) ([]string, error) {
+	return connector.redisClient.SMembers(ctx, dbNamespaceRoutesName(namespace)).Result()
+}
+
+func (connector *Connector) GetRouteUidByHost(ctx context.Context, host string) (string, error) {
+	res, err := connector.redisClient.Get(ctx, dbHostRoute(host)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", ErrorNotFound
+		}
+		return "", err
+	}
+
+	return res, nil
 }

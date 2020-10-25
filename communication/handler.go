@@ -6,6 +6,7 @@ import (
 	"fmt"
 	commonCommunication "github.com/kulycloud/common/communication"
 	"github.com/kulycloud/common/logging"
+	protoCommon "github.com/kulycloud/protocol/common"
 	protoStorage "github.com/kulycloud/protocol/storage"
 	"github.com/kulycloud/storage-redis/database"
 )
@@ -30,17 +31,7 @@ func (handler *StorageHandler) Register(listener *commonCommunication.Listener) 
 }
 
 func (handler *StorageHandler) SetRoute(ctx context.Context, request *protoStorage.SetRouteRequest) (*protoStorage.SetRouteResponse, error) {
-	var uid string
-	switch val := request.Id.(type) {
-	case *protoStorage.SetRouteRequest_Uid:
-		uid = val.Uid
-	case *protoStorage.SetRouteRequest_NamespacedName:
-		uid = database.RouteUidFromNamespacedName(val.NamespacedName)
-	default:
-		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
-	}
-
-	err := handler.dbConnector.SetRoute(ctx, uid, request.Data)
+	uid, err := handler.dbConnector.SetRoute(ctx, request.NamespacedName, request.Data)
 	if err != nil {
 		return nil, fmt.Errorf("could not set route: %w", err)
 	}
@@ -54,7 +45,11 @@ func (handler *StorageHandler) GetRoute(ctx context.Context, request *protoStora
 	case *protoStorage.GetRouteRequest_Uid:
 		uid = val.Uid
 	case *protoStorage.GetRouteRequest_NamespacedName:
-		uid = database.RouteUidFromNamespacedName(val.NamespacedName)
+		var err error
+		uid, err = handler.dbConnector.GetRouteUidLatestRevision(ctx, val.NamespacedName)
+		if err != nil {
+			return nil, fmt.Errorf("route not found: %w", ErrInvalidRequest)
+		}
 	default:
 		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
 	}
@@ -74,7 +69,11 @@ func (handler *StorageHandler) GetRouteStep(ctx context.Context, request *protoS
 	case *protoStorage.GetRouteStepRequest_Uid:
 		uid = val.Uid
 	case *protoStorage.GetRouteStepRequest_NamespacedName:
-		uid = database.RouteUidFromNamespacedName(val.NamespacedName)
+		var err error
+		uid, err = handler.dbConnector.GetRouteUidLatestRevision(ctx, val.NamespacedName)
+		if err != nil {
+			return nil, fmt.Errorf("route not found: %w", ErrInvalidRequest)
+		}
 	default:
 		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
 	}
@@ -86,4 +85,37 @@ func (handler *StorageHandler) GetRouteStep(ctx context.Context, request *protoS
 	}
 
 	return &protoStorage.GetRouteStepResponse{Step: step}, nil
+}
+
+func (handler *StorageHandler) GetRouteStart(ctx context.Context, request *protoStorage.GetRouteStartRequest) (*protoStorage.GetRouteStartResponse, error) {
+	uid, err := handler.dbConnector.GetRouteUidByHost(ctx, request.Host)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get route by host: %w", err)
+	}
+
+	step := protoStorage.RouteStep{}
+	err = handler.dbConnector.GetRouteStep(ctx, uid, 0, &step)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get route by host: %w", err)
+	}
+
+	return &protoStorage.GetRouteStartResponse{
+		Step:      &step,
+		Uid:       uid,
+		Endpoints: []*protoCommon.Endpoint {},
+	}, nil
+}
+
+func (handler *StorageHandler) GetRoutesInNamespace(ctx context.Context, request *protoStorage.GetRoutesInNamespaceRequest) (*protoStorage.GetRoutesInNamespaceResponse, error) {
+	routes, err := handler.dbConnector.GetRoutesInNamespace(ctx, request.Namespace)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get routes: %w", err)
+	}
+
+	return &protoStorage.GetRoutesInNamespaceResponse{
+		Routes: routes,
+	}, nil
 }
