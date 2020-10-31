@@ -17,6 +17,7 @@ var logger = logging.GetForComponent("communication")
 
 var _ protoStorage.StorageServer = &StorageHandler{}
 type StorageHandler struct {
+	protoStorage.UnimplementedStorageServer
 	dbConnector *database.Connector
 }
 
