@@ -152,3 +152,11 @@ func (handler *StorageHandler) GetServicesInNamespace(ctx context.Context, reque
 		Names: routes,
 	}, nil
 }
+
+func (handler *StorageHandler) GetServiceLBEndpoints(ctx context.Context, name *protoStorage.NamespacedName) (*protoCommon.EndpointList, error) {
+	return handler.dbConnector.GetEndpoints(ctx, database.ServiceLBEndpoints, name)
+}
+
+func (handler *StorageHandler) SetServiceLBEndpoints(ctx context.Context, request *protoStorage.SetServiceLBEndpointsRequest) (*protoCommon.Empty, error) {
+	return &protoCommon.Empty{}, handler.dbConnector.SetEndpoints(ctx, database.ServiceLBEndpoints, request.ServiceName, &protoCommon.EndpointList{Endpoints: request.Endpoints})
+}
