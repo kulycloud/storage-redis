@@ -102,10 +102,15 @@ func (handler *StorageHandler) GetRouteStart(ctx context.Context, request *proto
 		return nil, fmt.Errorf("could not get route by host: %w", err)
 	}
 
+	endpoints, err := handler.dbConnector.GetEndpoints(ctx, database.ServiceLBEndpoints, step.Service)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching endpoints for route: %w", err)
+	}
+
 	return &protoStorage.GetRouteStartResponse{
 		Step:      &step,
 		Uid:       uid,
-		Endpoints: []*protoCommon.Endpoint {},
+		Endpoints: endpoints.Endpoints,
 	}, nil
 }
 
