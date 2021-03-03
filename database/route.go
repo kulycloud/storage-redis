@@ -3,12 +3,15 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/jsonpb"
 	protoStorage "github.com/kulycloud/protocol/storage"
 	"strings"
 )
+
+var ErrInvalidUid = errors.New("invalid uid")
 
 type dbRoute struct {
 	Host string `json:"host"`
@@ -43,6 +46,23 @@ func dbLatestRevisionName(namespacedName *protoStorage.NamespacedName) string {
 
 func buildUid(namespacedName *protoStorage.NamespacedName, revision uint64) string {
 	return fmt.Sprintf("%s:%s@%v", namespacedName.Namespace, namespacedName.Name, revision)
+}
+
+func ParseUid(uid string) (*protoStorage.NamespacedName, error) {
+	parts1 := strings.SplitN(uid, "@", 2)
+	if len(parts1) != 2 {
+		return nil, ErrInvalidUid
+	}
+
+	parts2 := strings.SplitN(parts1[0], ":", 2)
+	if len(parts2) != 2 {
+		return nil, ErrInvalidUid
+	}
+
+	return &protoStorage.NamespacedName{
+		Namespace: parts2[0],
+		Name:      parts2[1],
+	}, nil
 }
 
 func dbHostRoute(host string) string {
@@ -200,7 +220,7 @@ func (connector *Connector) DeleteRoute(ctx context.Context, namespacedName *pro
 	tx.Del(ctx, dbLatestRevisionName(namespacedName))
 	tx.Del(ctx, dbRouteName(uid))
 	tx.Del(ctx, dbRouteStepsName(uid))
-	tx.SRem(ctx, dbNamespaceRoutesName(namespacedName.Namespace), namespacedName.Name)
+	tx.SRem(ctx, dbNamespaceRoutesName(namespacedName.Namespace), uid)
 	_, err = tx.Exec(ctx)
 
 	if err != nil {

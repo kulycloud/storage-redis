@@ -42,12 +42,20 @@ func (handler *StorageHandler) SetRoute(ctx context.Context, request *protoStora
 
 func (handler *StorageHandler) GetRoute(ctx context.Context, request *protoStorage.GetRouteRequest) (*protoStorage.GetRouteResponse, error) {
 	var uid string
+	namespacedName := &protoStorage.NamespacedName{}
+
 	switch val := request.Id.(type) {
 	case *protoStorage.GetRouteRequest_Uid:
 		uid = val.Uid
+		var err error
+		namespacedName, err = database.ParseUid(uid)
+		if err != nil {
+			return nil, err
+		}
 	case *protoStorage.GetRouteRequest_NamespacedName:
 		var err error
 		uid, err = handler.dbConnector.GetRouteUidLatestRevision(ctx, val.NamespacedName)
+		namespacedName = val.NamespacedName
 		if err != nil {
 			return nil, fmt.Errorf("route not found: %w", ErrInvalidRequest)
 		}
@@ -61,7 +69,7 @@ func (handler *StorageHandler) GetRoute(ctx context.Context, request *protoStora
 		return nil, fmt.Errorf("could not get route: %w", err)
 	}
 
-	return &protoStorage.GetRouteResponse{Route: &protoStorage.RouteWithId{Uid: uid, Route: route}}, nil
+	return &protoStorage.GetRouteResponse{Route: &protoStorage.RouteWithId{Uid: uid, Route: route, Name: namespacedName}}, nil
 }
 
 func (handler *StorageHandler) GetRouteStep(ctx context.Context, request *protoStorage.GetRouteStepRequest) (*protoStorage.GetRouteStepResponse, error) {
@@ -174,7 +182,7 @@ func (handler *StorageHandler) GetRoutesInNamespace(ctx context.Context, request
 	}
 
 	return &protoStorage.GetRoutesInNamespaceResponse{
-		Routes: routes,
+		RouteUids: routes,
 	}, nil
 }
 
