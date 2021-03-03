@@ -112,6 +112,7 @@ func (handler *StorageHandler) GetPopulatedRouteStep(ctx context.Context, reques
 	populatedStep := &protoStorage.PopulatedRouteStep{
 		Service:    step.Service,
 		Config:     step.Config,
+		Name: 		step.Name,
 		References: make(map[string]*protoStorage.PopulatedRouteStepReference),
 	}
 
