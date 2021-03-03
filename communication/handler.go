@@ -88,6 +88,55 @@ func (handler *StorageHandler) GetRouteStep(ctx context.Context, request *protoS
 	return &protoStorage.GetRouteStepResponse{Step: step}, nil
 }
 
+func (handler *StorageHandler) GetPopulatedRouteStep(ctx context.Context, request *protoStorage.GetRouteStepRequest) (*protoStorage.GetPopulatedRouteStepResponse, error) {
+	var uid string
+	switch val := request.Id.(type) {
+	case *protoStorage.GetRouteStepRequest_Uid:
+		uid = val.Uid
+	case *protoStorage.GetRouteStepRequest_NamespacedName:
+		var err error
+		uid, err = handler.dbConnector.GetRouteUidLatestRevision(ctx, val.NamespacedName)
+		if err != nil {
+			return nil, fmt.Errorf("route not found: %w", ErrInvalidRequest)
+		}
+	default:
+		return nil, fmt.Errorf("id is invalid: %w", ErrInvalidRequest)
+	}
+
+	step := &protoStorage.RouteStep{}
+	err := handler.dbConnector.GetRouteStep(ctx, uid, request.StepId, step)
+	if err != nil {
+		return nil, fmt.Errorf("could not get step: %w", err)
+	}
+
+	populatedStep := &protoStorage.PopulatedRouteStep{
+		Service:    step.Service,
+		Config:     step.Config,
+		References: make(map[string]*protoStorage.PopulatedRouteStepReference),
+	}
+
+	routeStep := &protoStorage.RouteStep{}
+
+	for name, stepId := range step.References {
+		err = handler.dbConnector.GetRouteStep(ctx, uid, stepId, routeStep)
+		if err != nil {
+			return nil, err
+		}
+
+		endpoints, err := handler.dbConnector.GetEndpoints(ctx, database.ServiceLBEndpoints, routeStep.Service)
+		if err != nil {
+			return nil, err
+		}
+
+		populatedStep.References[name] = &protoStorage.PopulatedRouteStepReference{
+			Step: stepId,
+			Endpoints: endpoints.Endpoints,
+		}
+	}
+
+	return &protoStorage.GetPopulatedRouteStepResponse{Step: populatedStep}, nil
+}
+
 func (handler *StorageHandler) GetRouteStart(ctx context.Context, request *protoStorage.GetRouteStartRequest) (*protoStorage.GetRouteStartResponse, error) {
 	uid, err := handler.dbConnector.GetRouteUidByHost(ctx, request.Host)
 
@@ -108,9 +157,11 @@ func (handler *StorageHandler) GetRouteStart(ctx context.Context, request *proto
 	}
 
 	return &protoStorage.GetRouteStartResponse{
-		Step:      &step,
+		Step:      &protoStorage.PopulatedRouteStepReference{
+			Step:      0,
+			Endpoints: endpoints.Endpoints,
+		},
 		Uid:       uid,
-		Endpoints: endpoints.Endpoints,
 	}, nil
 }
 
@@ -124,6 +175,10 @@ func (handler *StorageHandler) GetRoutesInNamespace(ctx context.Context, request
 	return &protoStorage.GetRoutesInNamespaceResponse{
 		Routes: routes,
 	}, nil
+}
+
+func (handler *StorageHandler) DeleteRoute(ctx context.Context, request *protoStorage.DeleteRouteRequest) (*protoCommon.Empty, error) {
+	return &protoCommon.Empty{}, handler.dbConnector.DeleteRoute(ctx, request.NamespacedName)
 }
 
 func (handler *StorageHandler) SetService(ctx context.Context, request *protoStorage.SetServiceRequest) (*protoCommon.Empty, error) {
@@ -164,4 +219,8 @@ func (handler *StorageHandler) GetServiceLBEndpoints(ctx context.Context, name *
 
 func (handler *StorageHandler) SetServiceLBEndpoints(ctx context.Context, request *protoStorage.SetServiceLBEndpointsRequest) (*protoCommon.Empty, error) {
 	return &protoCommon.Empty{}, handler.dbConnector.SetEndpoints(ctx, database.ServiceLBEndpoints, request.ServiceName, &protoCommon.EndpointList{Endpoints: request.Endpoints})
+}
+
+func (handler *StorageHandler) DeleteService(ctx context.Context, request *protoStorage.DeleteServiceRequest) (*protoCommon.Empty, error) {
+	return &protoCommon.Empty{}, handler.dbConnector.DeleteService(ctx, request.NamespacedName)
 }

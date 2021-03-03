@@ -47,3 +47,12 @@ func (connector *Connector) GetService(ctx context.Context, name *protoStorage.N
 func (connector *Connector) GetServicesInNamespace(ctx context.Context, namespace string) ([]string, error) {
 	return connector.redisClient.SMembers(ctx, dbNamespaceServicesName(namespace)).Result()
 }
+
+func (connector *Connector) DeleteService(ctx context.Context, namespacedName *protoStorage.NamespacedName) error {
+	tx := connector.redisClient.TxPipeline()
+	tx.Del(ctx, dbServiceName(namespacedName))
+	tx.SRem(ctx, dbNamespaceServicesName(namespacedName.Namespace), namespacedName.Name)
+
+	_, err := tx.Exec(ctx)
+	return err
+}

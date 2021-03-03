@@ -180,3 +180,43 @@ func (connector *Connector) GetRouteUidByHost(ctx context.Context, host string) 
 
 	return res, nil
 }
+
+func (connector *Connector) DeleteRoute(ctx context.Context, namespacedName *protoStorage.NamespacedName) error {
+	revision, err := connector.GetRouteLatestRevision(ctx, namespacedName)
+	if err != nil {
+		return err
+	}
+
+	route := &protoStorage.Route{}
+	uid := buildUid(namespacedName, revision)
+
+	err = connector.GetRoute(ctx, buildUid(namespacedName, revision), route)
+	if err != nil {
+		return err
+	}
+
+	tx := connector.redisClient.TxPipeline()
+	tx.Del(ctx, dbHostRoute(route.Host))
+	tx.Del(ctx, dbLatestRevisionName(namespacedName))
+	tx.Del(ctx, dbRouteName(uid))
+	tx.Del(ctx, dbRouteStepsName(uid))
+	tx.SRem(ctx, dbNamespaceRoutesName(namespacedName.Namespace), namespacedName.Name)
+	_, err = tx.Exec(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	// Delete all old revisions until we get an error (= revisions does not exist)
+
+	err = nil
+	for rev := revision-1; rev >= 0 && err == nil; rev-- {
+		revUid := buildUid(namespacedName, rev)
+		tx := connector.redisClient.TxPipeline()
+		tx.Del(ctx, dbRouteName(revUid))
+		tx.Del(ctx, dbRouteStepsName(revUid))
+		_, err = tx.Exec(ctx)
+	}
+
+	return nil
+}
