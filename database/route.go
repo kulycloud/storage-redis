@@ -210,7 +210,7 @@ func (connector *Connector) DeleteRoute(ctx context.Context, namespacedName *pro
 	// Delete all old revisions until we get an error (= revisions does not exist)
 
 	err = nil
-	for rev := revision-1; rev >= 0 && err == nil; rev-- {
+	for rev := revision-1; rev > 0 && err == nil; rev-- {
 		revUid := buildUid(namespacedName, rev)
 		tx := connector.redisClient.TxPipeline()
 		tx.Del(ctx, dbRouteName(revUid))
