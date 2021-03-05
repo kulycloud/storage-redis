@@ -1,0 +1,7 @@
+apiVersion: v2
+name: storage-redis
+description: Kuly redis storage provider
+
+type: application
+version: 0.1.0
+appVersion: "0.1.0-indev"

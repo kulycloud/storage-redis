@@ -1,0 +1,4 @@
+image: ghcr.io/kuly/storage-redis
+redis:
+  address: localhost:6379
+  password: password123
