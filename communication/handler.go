@@ -8,8 +8,11 @@ import (
 	"github.com/kulycloud/common/logging"
 	protoCommon "github.com/kulycloud/protocol/common"
 	protoStorage "github.com/kulycloud/protocol/storage"
+	"github.com/kulycloud/storage-redis/config"
 	"github.com/kulycloud/storage-redis/database"
 )
+
+var ControlPlane *commonCommunication.ControlPlaneCommunicator
 
 var ErrInvalidRequest = errors.New("invalid request")
 
@@ -232,4 +235,27 @@ func (handler *StorageHandler) SetServiceLBEndpoints(ctx context.Context, reques
 
 func (handler *StorageHandler) DeleteService(ctx context.Context, request *protoStorage.DeleteServiceRequest) (*protoCommon.Empty, error) {
 	return &protoCommon.Empty{}, handler.dbConnector.DeleteService(ctx, request.NamespacedName)
+}
+
+func RegisterToControlPlane(dbConnector *database.Connector) {
+	communicator := commonCommunication.RegisterToControlPlane("storage",
+		config.GlobalConfig.Host, config.GlobalConfig.Port,
+		config.GlobalConfig.ControlPlaneHost, config.GlobalConfig.ControlPlanePort)
+
+	logger.Info("Starting listener")
+	listener := commonCommunication.NewListener(logging.GetForComponent("listener"))
+	if err := listener.Setup(config.GlobalConfig.Port); err != nil {
+		logger.Panicw("error initializing listener", "error", err)
+	}
+
+	handler := NewStorageHandler(dbConnector)
+	handler.Register(listener)
+
+	serveErr := listener.Serve()
+	ControlPlane = <-communicator
+
+	err := <-serveErr
+	if err != nil {
+		logger.Panicw("error serving listener", "error", err)
+	}
 }
