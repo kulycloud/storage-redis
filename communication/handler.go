@@ -240,7 +240,7 @@ func (handler *StorageHandler) DeleteService(ctx context.Context, request *proto
 func RegisterToControlPlane(dbConnector *database.Connector) {
 	communicator := commonCommunication.RegisterToControlPlane("storage",
 		config.GlobalConfig.Host, config.GlobalConfig.Port,
-		config.GlobalConfig.ControlPlaneHost, config.GlobalConfig.ControlPlanePort)
+		config.GlobalConfig.ControlPlaneHost, config.GlobalConfig.ControlPlanePort, false)
 
 	logger.Info("Starting listener")
 	listener := commonCommunication.NewListener(logging.GetForComponent("listener"))
