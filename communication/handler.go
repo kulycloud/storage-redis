@@ -237,6 +237,15 @@ func (handler *StorageHandler) DeleteService(ctx context.Context, request *proto
 	return &protoCommon.Empty{}, handler.dbConnector.DeleteService(ctx, request.NamespacedName)
 }
 
+func (handler *StorageHandler) GetNamespaces(ctx context.Context, _ *protoCommon.Empty) (*protoStorage.NamespaceList, error) {
+	namespaces, err := handler.dbConnector.GetNamespaces(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &protoStorage.NamespaceList{Namespaces: namespaces}, nil
+}
+
 func RegisterToControlPlane(dbConnector *database.Connector) {
 	communicator := commonCommunication.RegisterToControlPlane("storage",
 		config.GlobalConfig.Host, config.GlobalConfig.Port,

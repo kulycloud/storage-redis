@@ -27,6 +27,7 @@ func (connector *Connector) SetService(ctx context.Context, namespacedName *prot
 	p := connector.redisClient.TxPipeline()
 	p.Set(ctx, dbServiceName(namespacedName), serviceStr, 0)
 	p.SAdd(ctx, dbNamespaceServicesName(namespacedName.Namespace), namespacedName.Name)
+	connector.AddNamespaceIfNotExistsTx(ctx, p, namespacedName.Namespace)
 
 	_, err = p.Exec(ctx)
 	return err
@@ -54,5 +55,9 @@ func (connector *Connector) DeleteService(ctx context.Context, namespacedName *p
 	tx.SRem(ctx, dbNamespaceServicesName(namespacedName.Namespace), namespacedName.Name)
 
 	_, err := tx.Exec(ctx)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return connector.DeleteNamespaceIfEmpty(ctx, namespacedName.Namespace)
 }

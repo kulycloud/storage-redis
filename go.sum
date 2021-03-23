@@ -81,10 +81,14 @@ github.com/kulycloud/common v0.0.0-20210305152636-bcdc94ebece0 h1:fI5qy+hMYwP3a3
 github.com/kulycloud/common v0.0.0-20210305152636-bcdc94ebece0/go.mod h1:v7bg54q3vnfxDxWJGJUY4DP4zwEq47KOLvNb3dRnJOI=
 github.com/kulycloud/common v0.0.0-20210317192529-65d5287353ce h1:HuQx+0WfQ/YurHn5LvpDz0nzIa9w92YdXc2PlLkcXFY=
 github.com/kulycloud/common v0.0.0-20210317192529-65d5287353ce/go.mod h1:E+Su9D6lW+QA0FsQF+kuHpnU9ySnjMD7JCzMXDq0efI=
+github.com/kulycloud/common v0.0.0-20210323100819-93d825d597b5 h1:jrwP7ue7waGFNwRSKf2oDbxzLw0L9va0L7PCLtWWgvE=
+github.com/kulycloud/common v0.0.0-20210323100819-93d825d597b5/go.mod h1:BGyUyF3p9c/ZBtWA/kNPp0MxV6pC84oJwYxqL6zoQ2k=
 github.com/kulycloud/protocol v0.0.0-20210303190205-727e9c8daa90 h1:0W/N3YULxYxH8uQF9DTQIqIfPsRuezIfLKK2uuSQmfo=
 github.com/kulycloud/protocol v0.0.0-20210303190205-727e9c8daa90/go.mod h1:0ew/OZBNjY27vlfb0xrgaTDp/3A5SM6SepXtWUAd8YY=
 github.com/kulycloud/protocol v0.0.0-20210317180715-ff3830aafecd h1:ItS0FRgk8dPwS8WZrt68WuOh1ZKr8hSPVdlWZ5aRRSg=
 github.com/kulycloud/protocol v0.0.0-20210317180715-ff3830aafecd/go.mod h1:0ew/OZBNjY27vlfb0xrgaTDp/3A5SM6SepXtWUAd8YY=
+github.com/kulycloud/protocol v0.0.0-20210323100304-4caa455444f5 h1:0XR6DQMjHodqrpnKNivH7dmE5pjqhma7HCI0gvP95WU=
+github.com/kulycloud/protocol v0.0.0-20210323100304-4caa455444f5/go.mod h1:0ew/OZBNjY27vlfb0xrgaTDp/3A5SM6SepXtWUAd8YY=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

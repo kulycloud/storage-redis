@@ -119,6 +119,7 @@ func (connector *Connector) SetRoute(ctx context.Context, namespacedName *protoS
 	}
 	p.Set(ctx, dbHostRoute(route.Host), uid, 0)
 	p.Set(ctx, dbLatestRevisionName(namespacedName), revision, 0)
+	connector.AddNamespaceIfNotExistsTx(ctx, p, namespacedName.Namespace)
 
 	m := jsonpb.Marshaler{}
 	for _, step := range route.Steps {
@@ -227,6 +228,10 @@ func (connector *Connector) DeleteRoute(ctx context.Context, namespacedName *pro
 		return err
 	}
 
+	err = connector.DeleteNamespaceIfEmpty(ctx, namespacedName.Namespace)
+	if err != nil {
+		return err
+	}
 	// Delete all old revisions until we get an error (= revisions does not exist)
 
 	err = nil
